@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Modelo de Usuario (para autenticación)
+// ============================================
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  password  String
+  role      String   @default("receptionist") // admin, doctor, receptionist
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// ============================================
+// Modelo de Paciente
+// ============================================
+model Patient {
+  id          String    @id @default(uuid())
+  phone       String    @unique
+  name        String?
+  email       String?
+  dateOfBirth DateTime?
+  address     String?
+  notes       String?
+  type        String?   @default("regular") // regular, vip, new
+  doctor      String?   // Doctor asignado
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  appointments Appointment[]
+  messages     Message[]
+  notesList    PatientNote[]
+
+  @@map("patients")
+}
+
+// ============================================
+// Modelo de Notas de Paciente
+// ============================================
+model PatientNote {
+  id        String   @id @default(uuid())
+  patientId String
+  content   String
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("patient_notes")
+}
+
+// ============================================
+// Modelo de Cita (Appointment)
+// ============================================
+model Appointment {
+  id        String   @id @default(uuid())
+  patientId String
+  date      DateTime
+  duration  Int      @default(30) // en minutos
+  reason    String?
+  notes     String?
+  status    String   @default("pending") // pending, confirmed, cancelled, completed, no_show
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("appointments")
+}
+
+// ============================================
+// Modelo de Mensaje (WhatsApp)
+// ============================================
+model Message {
+  id                String    @id @default(uuid())
+  patientId         String
+  type              String    // incoming, outgoing
+  content           String
+  mediaUrl          String?
+  whatsappMessageId String?
+  status            String    @default("sent") // sent, delivered, read, failed
+  sentAt            DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+// ============================================
+// Modelo de Informe Diario (Daily Report)
+// ============================================
+model DailyReport {
+  id                    String   @id @default(uuid())
+  date                  DateTime @unique
+  content               String   @db.Text // Markdown content
+  totalAppointments     Int      @default(0)
+  confirmedAppointments Int      @default(0)
+  cancelledAppointments Int      @default(0)
+  completedAppointments Int      @default(0)
+  pendingAppointments   Int      @default(0)
+  noShowAppointments    Int      @default(0)
+  urgentCount           Int      @default(0)
+  newPatients           Int      @default(0)
+  totalMessages         Int      @default(0)
+  incomingMessages      Int      @default(0)
+  outgoingMessages      Int      @default(0)
+  generatedAt           DateTime @default(now())
+  generatedBy           String?  // n8n, manual, system
+
+  @@map("daily_reports")
+}
+
+// ============================================
+// Modelo de Historial de Chat (IA)
+// ============================================
+model ChatHistory {
+  id          String   @id @default(uuid())
+  question    String
+  answer      String   @db.Text
+  contextType String?  // patient, report, dashboard
+  contextId   String?  // patient phone, report date, etc
+  createdAt   DateTime @default(now())
+
+  @@map("chat_history")
+}
+
+// ============================================
+// Modelo de Configuración de Clínica
+// ============================================
+model ClinicSettings {
+  id                    String   @id @default(uuid())
+  clinicName            String   @default("Mi Clínica")
+  phoneNumber           String?
+  address               String?
+  openingHours          Json?    // JSON con horarios
+  appointmentDuration   Int      @default(30)
+  whatsappApiKey        String?
+  whatsappPhoneNumberId String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("clinic_settings")
+}
